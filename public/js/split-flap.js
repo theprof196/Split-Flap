@@ -157,11 +157,26 @@ sf.Items = Backbone.Collection.extend({
   init: options => {
     // create the Collection
     items = new sf.Items(); // NOTE GLOBAL!
-    items.url = sf.plugins[options.plugin].url(options);
+    const plugin = sf.plugins[options.plugin];
+    items.url = plugin.url(options);
+
+    // Allow plugins to provide local in-browser data so boards can run
+    // directly from index.html without a web server/API.
+    if (typeof plugin.localData === 'function') {
+      items.sync = (method, model, syncOptions) => {
+        const records = plugin.localData(options);
+        const payload = { data: records };
+        if (syncOptions && typeof syncOptions.success === 'function') {
+          syncOptions.success(payload);
+        }
+        return Promise.resolve(payload);
+      };
+      return;
+    }
 
     // check if we're using jsonp
     // TODO: do we still need this? It's 2019!
-    if (sf.plugins[options.plugin].dataType === 'jsonp') {
+    if (plugin.dataType === 'jsonp') {
       items.sync = (method, model, options) => {
         options.timeout = 10000;
         options.dataType = 'jsonp';
