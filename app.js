@@ -1,154 +1,109 @@
 /* global require console process Promise module */
 
 const express = require('express'),
+  fs = require('fs/promises'),
+  path = require('path'),
   app = express();
 
-function getRandomInt(max) {
-  return Math.floor(Math.random() * Math.floor(max));
+const ARRIVALS_CSV_PATH = path.join(__dirname, 'public/data/arrivals.csv');
+const ARRIVALS_COLUMNS = [
+  'airline',
+  'flight',
+  'city',
+  'gate',
+  'scheduled',
+  'status',
+  'remarks'
+];
+
+function parseCsvLine(line) {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current.trim());
+
+  return values;
 }
 
-function getTail() {
-  let c = [
-    'a',
-    'b',
-    'c',
-    'd',
-    'e',
-    'f',
-    'g',
-    'h',
-    'i',
-    'j',
-    'k',
-    'l',
-    'm',
-    'n',
-    'o',
-    'p',
-    'q',
-    'r',
-    's',
-    't',
-    'u',
-    'v',
-    'w',
-    'x',
-    'y',
-    'z'
-  ];
-  return `N${getRandomInt(9999)}${c[getRandomInt(c.length - 1)]}`;
-}
+function parseArrivalsCsv(content) {
+  const lines = content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 
-function getAirline() {
-  const airlines = [
-    'SWA',
-    'AAL',
-    'BAW',
-    'DAL',
-    'UAE',
-    'KLM',
-    'DLH',
-    'ASA',
-    'UAL',
-    'FDX',
-    'PXM',
-    'SKW',
-    'JBU',
-    'ACA',
-    'QXE',
-    'NKS',
-    'VIR',
-    'LXJ',
-    'QFA'
-  ];
-  return airlines[getRandomInt(airlines.length - 1)];
-}
+  if (lines.length === 0) {
+    return [];
+  }
 
-function getTime() {
-  return '01:23';
-}
+  const headers = parseCsvLine(lines[0]).map((header) => header.toLowerCase());
 
-function getFlight() {
-  return getRandomInt(2000);
-}
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line);
+    const row = {};
 
-function getHeading() {
-  return getRandomInt(359)
-    .toString()
-    .padStart(3, '0');
-}
+    headers.forEach((header, index) => {
+      row[header] = values[index] || '';
+    });
 
-function getGate() {
-  const t = ['A', 'B', 'C'][getRandomInt(2)];
-  const g = getRandomInt(30);
-  return `${t}${g}`;
-}
-
-function getCity() {
-  const cities = [
-    'Atlanta',
-    'Baltimore',
-    'Charleston',
-    'Durban',
-    'Edinburgh',
-    'Frankfurt',
-    'Galveston',
-    'Havana',
-    'Iowa City',
-    'Jakarta',
-    'Karachi',
-    'Los Angeles',
-    'Mexico City',
-    'Nairobi',
-    'Ontario',
-    'Pittsburgh',
-    'Quebec City',
-    'Roanoake',
-    'San Diego',
-    'Tallahassee'
-  ];
-  return cities[getRandomInt(20)];
-}
-
-function getTime() {
-  let hrs = getRandomInt(23)
-    .toString()
-    .padStart(2, '0');
-  let mins = getRandomInt(59)
-    .toString()
-    .padStart(2, '0');
-  return `${hrs}${mins}`;
+    return {
+      airline: row.airline || '',
+      flight: row.flight || '',
+      city: row.city || '',
+      gate: row.gate || '',
+      scheduled: row.scheduled || '',
+      status: row.status || 'A',
+      remarks: row.remarks || ''
+    };
+  });
 }
 
 // ========================================================================
 // API
 
-app.use('/api/arrivals', (req, res) => {
-  let r = {
-    data: []
-  };
+app.use('/api/arrivals', async (req, res) => {
+  try {
+    const csvContent = await fs.readFile(ARRIVALS_CSV_PATH, 'utf8');
+    const rows = parseArrivalsCsv(csvContent).map((row) => {
+      const normalizedRow = {};
 
-  for (let i = 0; i < 18; i++) {
-    // Create the data for a row.
-    let data = {
-      airline: getAirline(),
-      flight: getFlight(),
-      city: getCity(),
-      gate: getGate(),
-      scheduled: getTime()
-    };
+      ARRIVALS_COLUMNS.forEach((column) => {
+        normalizedRow[column] = row[column] || '';
+      });
 
-    // Let's add an occasional delayed flight.
-    data.status = getRandomInt(10) > 7 ? 'B' : 'A';
-    if (data.status === 'B') {
-      data.remarks = `Delayed ${getRandomInt(50)}M`;
-    }
+      normalizedRow.status = row.status || 'A';
+      normalizedRow.remarks = row.remarks || '';
 
-    // Add the row the the response.
-    r.data.push(data);
+      return normalizedRow;
+    });
+
+    res.json({ data: rows });
+  } catch (error) {
+    console.error('Unable to load arrivals CSV:', error);
+    res.status(500).json({ data: [] });
   }
-
-  res.json(r);
 });
 
 // ========================================================================

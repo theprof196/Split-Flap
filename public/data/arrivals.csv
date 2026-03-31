@@ -1,0 +1,19 @@
+airline,flight,city,gate,scheduled,status,remarks
+SWA,317,Atlanta,A4,0725,A,
+AAL,1842,Baltimore,B12,0740,A,
+BAW,219,London,C3,0805,B,Delayed 20M
+DAL,913,Detroit,A18,0815,A,
+UAE,202,Dubai,C9,0830,A,
+KLM,645,Amsterdam,B2,0855,A,
+DLH,431,Frankfurt,C11,0910,B,Delayed 35M
+ASA,772,Seattle,A1,0900,A,
+UAL,1503,Chicago,B7,0915,A,
+FDX,89,Memphis,C14,0930,A,
+PXM,505,Phoenix,A9,0945,A,
+SKW,3886,Denver,B10,1000,A,
+JBU,244,Boston,C5,1015,A,
+ACA,738,Toronto,A7,1030,A,
+QXE,2310,Portland,B3,1045,A,
+NKS,122,Las Vegas,C6,1100,A,
+VIR,14,Manchester,B1,1115,A,
+LXJ,507,San Diego,A11,1130,A,
